@@ -8,6 +8,9 @@
  * - UI element updates
  */
 
+// Import Skybox module
+import { Skybox } from './skybox.js';
+
 // Camera settings
 const CAMERA_SETTINGS = {
     fov: 75,
@@ -164,6 +167,7 @@ class GameRenderer {
         this.camera = null;
         this.renderer = null;
         this.effects = new VisualEffects();
+        this.skybox = null;
     }
     
     /**
@@ -172,6 +176,7 @@ class GameRenderer {
     init() {
         this.createScene();
         this.createLights();
+        this.createSkybox();
         this.setupEventListeners();
         
         return { scene: this.scene, camera: this.camera, renderer: this.renderer };
@@ -183,7 +188,11 @@ class GameRenderer {
     createScene() {
         // Create scene
         this.scene = new THREE.Scene();
-        this.scene.fog = new THREE.FogExp2(0x110022, 0.0025);
+        
+        // Enhanced fog for better depth perception and skybox integration
+        // Use a purple fog that gradually transitions to the horizon colors
+        // Reduced density for greater view distance and better visibility of distant elements
+        this.scene.fog = new THREE.FogExp2(0x330066, 0.0007); // Much less dense fog to match larger skybox scale
         
         // Create camera
         this.camera = new THREE.PerspectiveCamera(
@@ -195,40 +204,71 @@ class GameRenderer {
         this.camera.position.set(0, CAMERA_SETTINGS.baseHeight, -CAMERA_SETTINGS.baseDistance);
         this.camera.lookAt(0, 1, 30);
         
-        // Create renderer
-        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        // Create renderer with enhanced settings
+        this.renderer = new THREE.WebGLRenderer({ 
+            antialias: true,
+            alpha: true  // Enable alpha for better blending effects
+        });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setClearColor(0x000000);
+        this.renderer.setClearColor(0x000011); // Deep blue-black background
         this.renderer.shadowMap.enabled = true;
         document.body.appendChild(this.renderer.domElement);
     }
     
     /**
-     * Create lighting for the scene
+     * Create enhanced lighting for the scene that complements the skybox
      */
     createLights() {
-        // Ambient light for overall illumination
-        const ambientLight = new THREE.AmbientLight(0x333333);
+        // Stronger ambient light with purple/blue tint for vaporwave atmosphere
+        const ambientLight = new THREE.AmbientLight(0x443366, 0.7);
         this.scene.add(ambientLight);
         
-        // Main directional light (sunset effect)
-        const sunLight = new THREE.DirectionalLight(0xff5588, 1);
-        sunLight.position.set(10, 30, -10);
+        // Main directional light (enhanced sunset effect)
+        const sunLight = new THREE.DirectionalLight(0xff66aa, 1.2);
+        sunLight.position.set(0, 40, -100); // Align with skybox sun position
         sunLight.castShadow = true;
+        
+        // Improved shadow quality
+        sunLight.shadow.mapSize.width = 2048;
+        sunLight.shadow.mapSize.height = 2048;
+        sunLight.shadow.camera.near = 0.5;
+        sunLight.shadow.camera.far = 500;
+        sunLight.shadow.bias = -0.0005;
+        
         this.scene.add(sunLight);
         
-        // Add point lights for neon effect
-        const purpleLight = new THREE.PointLight(0xcc33ff, 1, 100);
-        purpleLight.position.set(0, 10, 50);
+        // Add enhanced point lights for neon effect
+        // Magenta light (stronger now)
+        const purpleLight = new THREE.PointLight(0xff33ff, 1.2, 120);
+        purpleLight.position.set(0, 15, 60);
         this.scene.add(purpleLight);
         
-        const blueLight = new THREE.PointLight(0x3333ff, 1, 100);
-        blueLight.position.set(-20, 5, 20);
+        // Blue light with wider radius
+        const blueLight = new THREE.PointLight(0x3333ff, 1, 150);
+        blueLight.position.set(-25, 8, 20);
         this.scene.add(blueLight);
         
-        const cyanLight = new THREE.PointLight(0x00ffff, 1, 100);
-        cyanLight.position.set(20, 5, 20);
+        // Cyan light with wider radius
+        const cyanLight = new THREE.PointLight(0x00ffff, 1, 150);
+        cyanLight.position.set(25, 8, 20);
         this.scene.add(cyanLight);
+        
+        // Add an extra pulsing light for dynamic atmosphere
+        this.pulsingLight = new THREE.PointLight(0xff00aa, 0.8, 100);
+        this.pulsingLight.position.set(0, 20, -40);
+        this.scene.add(this.pulsingLight);
+        
+        // Store the time of creation for animations
+        this.lightsCreatedTime = Date.now();
+    }
+    
+    /**
+     * Create skybox using the Skybox module
+     */
+    createSkybox() {
+        // Create skybox instance and initialize it
+        this.skybox = new Skybox(this.camera, this.scene);
+        this.skybox.create();
     }
     
     /**
@@ -397,9 +437,28 @@ class GameRenderer {
     }
     
     /**
-     * Render the current scene
+     * Render the current scene with enhanced lighting effects
      */
     render() {
+        // Update skybox with enhanced effects
+        if (this.skybox) {
+            this.skybox.update();
+        }
+        
+        // Animate the pulsing light
+        if (this.pulsingLight) {
+            const timeDiff = (Date.now() - this.lightsCreatedTime) * 0.001; // Convert to seconds
+            
+            // Create a pulsing effect
+            const pulseIntensity = 0.7 + Math.sin(timeDiff * 1.5) * 0.3;
+            this.pulsingLight.intensity = pulseIntensity;
+            
+            // Subtly change color over time for dynamic feel
+            const hue = (timeDiff * 0.05) % 1;
+            const color = new THREE.Color().setHSL(hue, 1, 0.5);
+            this.pulsingLight.color = color;
+        }
+        
         this.renderer.render(this.scene, this.camera);
     }
     

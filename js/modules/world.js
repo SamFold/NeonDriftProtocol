@@ -100,7 +100,7 @@ class GameWorld {
         // Create basic elements
         this.createRoad();
         this.createTerrain();
-        this.createSkybox();
+        // Skybox is now handled by the renderer in a separate module
         this.createDecorations();
         
         // Add main container to scene
@@ -247,105 +247,9 @@ class GameWorld {
         // Store for animation
         this.gridMaterial = gridMaterial;
         
-        // Add mountains in the distance
-        this.createMountains();
+        // Mountains removed - now handled by the skybox module
     }
     
-    /**
-     * Create stylized mountains
-     */
-    createMountains() {
-        const mountainGeometry = new THREE.BufferGeometry();
-        const vertices = [];
-        const mountainCount = 20;
-        const mountainWidth = 100;
-        const baseZ = 500;
-        
-        for (let i = 0; i < mountainCount; i++) {
-            const x = -500 + i * mountainWidth;
-            const height = 20 + Math.random() * 80;
-            
-            vertices.push(
-                x, 0, baseZ,
-                x + mountainWidth/2, height, baseZ,
-                x + mountainWidth, 0, baseZ
-            );
-        }
-        
-        mountainGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-        
-        // Neon wireframe material
-        const mountainMaterial = new THREE.MeshBasicMaterial({
-            color: 0xff00aa,
-            wireframe: true
-        });
-        
-        const mountains = new THREE.Mesh(mountainGeometry, mountainMaterial);
-        this.scene.add(mountains);
-    }
-    
-    /**
-     * Create a skybox with vaporwave aesthetic. This is currently broken. lol
-     */
-    createSkybox() {
-        const skyGeometry = new THREE.BoxGeometry(1000, 1000, 1000);
-        
-        // Gradient colors for vaporwave sky
-        //Currently un-used but I want to add this back later
-        const topColor = new THREE.Color(0x2200aa);
-        const bottomColor = new THREE.Color(0xff0066);
-        
-        const skyMaterials = [];
-        
-        for (let i = 0; i < 6; i++) {
-            // Create a canvas for the gradient
-            const canvas = document.createElement('canvas');
-            canvas.width = 256;
-            canvas.height = 256;
-            const context = canvas.getContext('2d');
-            
-            // Create gradient based on the face
-            let gradient;
-            if (i === 2) { // top
-                gradient = context.createLinearGradient(0, 0, 0, 256);
-                gradient.addColorStop(0, '#000033');
-                gradient.addColorStop(1, '#110022');
-            } else if (i === 3) { // bottom
-                gradient = context.createLinearGradient(0, 0, 0, 256);
-                gradient.addColorStop(0, '#ff0066');
-                gradient.addColorStop(1, '#ff0066');
-            } else { // sides
-                gradient = context.createLinearGradient(0, 0, 0, 256);
-                gradient.addColorStop(0, '#110022');
-                gradient.addColorStop(0.5, '#ff0066');
-                gradient.addColorStop(1, '#000000');
-            }
-            
-            context.fillStyle = gradient;
-            context.fillRect(0, 0, 256, 256);
-            
-            // Add stars to the top
-            if (i === 2) {
-                context.fillStyle = 'white';
-                for (let j = 0; j < 100; j++) {
-                    const x = Math.random() * 256;
-                    const y = Math.random() * 256;
-                    const size = Math.random() * 2;
-                    context.fillRect(x, y, size, size);
-                }
-            }
-            
-            // Create material from canvas
-            const texture = new THREE.CanvasTexture(canvas);
-            skyMaterials.push(new THREE.MeshBasicMaterial({
-                map: texture,
-                side: THREE.BackSide
-            }));
-        }
-        
-        const skybox = new THREE.Mesh(skyGeometry, skyMaterials);
-        this.scene.add(skybox);
-    }
     
     /**
      * Add decorative elements to the scene
