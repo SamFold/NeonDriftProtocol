@@ -383,54 +383,42 @@ class GameRenderer {
      * Update camera position to follow vehicle
      */
     updateCamera(vehiclePosition, vehicleDirection, vehicleSpeed, roadCurve) {
-        // Convert speed to 0-1 range for camera adjustments
-        // Using MAX_SPEED of 200 instead of 80 now
-        const normalizedSpeed = Math.min(Math.abs(vehicleSpeed) / 200, 1);
+        // Create a fixed reference point relative to the vehicle
+        const fixedReferencePoint = vehiclePosition.clone();
         
-        // Camera distance scales with speed - farther back at higher speeds
-        const cameraDistance = CAMERA_SETTINGS.baseDistance + normalizedSpeed * 15;
-        
-        // Revert to a more reasonable camera height that shows the car properly
-        const cameraHeight = CAMERA_SETTINGS.baseHeight + 5 + normalizedSpeed * 8;
+        // Fixed camera distance and height
+        const cameraDistance = CAMERA_SETTINGS.baseDistance + 10;
+        const cameraHeight = CAMERA_SETTINGS.baseHeight + 8;
         
         // Create vector pointing behind the car (opposite of direction)
         const behind = vehicleDirection.clone().multiplyScalar(-cameraDistance);
-        
-        // Add slight offset vertically to look down on car
         behind.y += cameraHeight;
         
-        // Calculate target camera position
-        const targetCameraPos = new THREE.Vector3();
-        targetCameraPos.copy(vehiclePosition).add(behind);
+        // Calculate target camera position from our reference point
+        const targetCameraPos = new THREE.Vector3().copy(fixedReferencePoint).add(behind);
         
-        // Add curve influence to enhance the feeling of curves
-        // This shifts the camera to the outside of turns for a more dynamic view
+        // Add curve influence for turn feeling
         const rightVec = new THREE.Vector3().crossVectors(vehicleDirection, new THREE.Vector3(0, 1, 0)).normalize();
-        targetCameraPos.add(rightVec.multiplyScalar(roadCurve * 5 * normalizedSpeed));
+        targetCameraPos.add(rightVec.multiplyScalar(roadCurve * 5));
         
-        // Smoothly move camera toward target position - faster transitions at higher speeds
-        // but not too fast to keep camera stable at high speeds
-        const positionLerp = Math.max(0.05, Math.min(0.15, normalizedSpeed * 0.12));
-        this.camera.position.lerp(targetCameraPos, positionLerp);
+        // CRITICAL FIX: Remove the lerp entirely for a rigid camera that stays in fixed relation to the car
+        this.camera.position.copy(targetCameraPos); // No lerp - camera directly follows car with no lag
         
-        // Make the camera tilt slightly in the direction of turns
-        // More pronounced tilt at higher speeds
-        const targetTilt = -roadCurve * 0.15 * (1 + normalizedSpeed);
+        // Keep camera tilt for turns, with fixed intensity
+        const targetTilt = -roadCurve * 0.15;
         this.camera.rotation.z = THREE.MathUtils.lerp(
             this.camera.rotation.z,
             targetTilt,
             0.1
         );
         
-        // More reasonable look-ahead distance so we can see the car and the road
-        const lookAheadDistance = 40 + 80 * normalizedSpeed;
+        // Fixed look-ahead distance
+        const lookAheadDistance = 50; // Smaller fixed distance
         const ahead = vehicleDirection.clone().multiplyScalar(lookAheadDistance);
         
-        // Create a look target that's ahead of the vehicle
-        // Add slight vertical offset to keep camera tilted down
-        const lookTarget = new THREE.Vector3();
-        lookTarget.copy(vehiclePosition).add(ahead);
-        lookTarget.y = Math.max(0, vehiclePosition.y - 3); // Look slightly downward
+        // Look target must use same reference point as camera to maintain consistent perspective
+        const lookTarget = new THREE.Vector3().copy(fixedReferencePoint).add(ahead);
+        lookTarget.y = Math.max(0, fixedReferencePoint.y - 3); // Look slightly downward
         
         // Make camera look at target point
         this.camera.lookAt(lookTarget);

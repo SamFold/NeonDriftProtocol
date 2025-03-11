@@ -733,7 +733,37 @@ class Vehicle {
     getBoundingBox() {
         if (!this.mesh) return null;
         
-        return new THREE.Box3().setFromObject(this.mesh);
+        // Instead of using the entire mesh, create a custom bounding box
+        // that more closely matches the car's actual body
+        // The car body is 4x1x8 (from renderer.js line 295)
+        
+        // Create a custom bounding box slightly smaller than the car's visual body
+        // to allow for more forgiving collision detection
+        const halfWidth = 1.7; // Slightly smaller than car width (4 units / 2)
+        const halfHeight = 0.5; // Car height (1 unit / 2) 
+        const halfLength = 3.5; // Slightly smaller than car length (8 units / 2)
+        
+        // Use the car's position and rotation to position the hitbox
+        const position = this.position.clone();
+        
+        // Create vectors for the corners of the box
+        const frontVector = this.direction.clone().multiplyScalar(halfLength);
+        const rightVector = this.right.clone().multiplyScalar(halfWidth);
+        const upVector = this.up.clone().multiplyScalar(halfHeight);
+        
+        // Calculate min point (back-left-bottom corner)
+        const min = position.clone()
+            .sub(frontVector)
+            .sub(rightVector)
+            .sub(upVector);
+            
+        // Calculate max point (front-right-top corner)
+        const max = position.clone()
+            .add(frontVector)
+            .add(rightVector)
+            .add(upVector);
+        
+        return new THREE.Box3(min, max);
     }
 }
 

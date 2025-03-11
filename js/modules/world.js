@@ -103,6 +103,9 @@ class GameWorld {
         // Skybox is now handled by the renderer in a separate module
         this.createDecorations();
         
+        // Add new starting area
+        this.createStartingArea();
+        
         // Add main container to scene
         this.scene.add(this.road);
         
@@ -115,25 +118,213 @@ class GameWorld {
     }
     
     /**
+     * Create a dramatic starting area with gateway and starting line
+     */
+    createStartingArea() {
+        // Create a group for the starting area elements
+        const startingArea = new THREE.Group();
+        
+        // 1. Neon Gateway Arch
+        const archHeight = 20;
+        const archWidth = LANE_WIDTH * 4;
+        
+        // Create arch frame with neon wireframe
+        const archGeometry = new THREE.TorusGeometry(archWidth / 2, 0.8, 16, 32, Math.PI);
+        const archMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xff00ff, 
+            wireframe: true 
+        });
+        
+        const arch = new THREE.Mesh(archGeometry, archMaterial);
+        arch.rotation.x = Math.PI / 2;
+        arch.rotation.z = Math.PI;
+        arch.position.set(0, archHeight / 2, -15);
+        startingArea.add(arch);
+        
+        // Add arch supports
+        const pillarGeometry = new THREE.CylinderGeometry(1, 1, archHeight, 8);
+        const pillarMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xff00ff,
+            wireframe: true
+        });
+        
+        const leftPillar = new THREE.Mesh(pillarGeometry, pillarMaterial);
+        leftPillar.position.set(-archWidth / 2, archHeight / 2, -15);
+        startingArea.add(leftPillar);
+        
+        const rightPillar = new THREE.Mesh(pillarGeometry, pillarMaterial);
+        rightPillar.position.set(archWidth / 2, archHeight / 2, -15);
+        startingArea.add(rightPillar);
+        
+        // Add top connector beam
+        const beamGeometry = new THREE.BoxGeometry(archWidth, 2, 2);
+        const beamMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0x00ffff,
+            wireframe: true
+        });
+        const beam = new THREE.Mesh(beamGeometry, beamMaterial);
+        beam.position.set(0, archHeight, -15);
+        startingArea.add(beam);
+        
+        // 2. Illuminated Starting Line
+        const lineWidth = LANE_WIDTH * 3.5;
+        const startLineGeometry = new THREE.PlaneGeometry(lineWidth, 3);
+        const startLineMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.8
+        });
+        
+        const startLine = new THREE.Mesh(startLineGeometry, startLineMaterial);
+        startLine.rotation.x = -Math.PI / 2;
+        startLine.position.set(0, 0.1, -10);
+        startingArea.add(startLine);
+        
+        // 3. Starting Pylons - several on each side of the starting line
+        const pylonCount = 6;
+        const pylonHeight = 5;
+        const pylonSpacing = 5;
+        
+        // Create a single geometry/material for performance
+        const pylonGeometry = new THREE.CylinderGeometry(0.5, 0.5, pylonHeight, 8);
+        const pylonMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0x00ffff 
+        });
+        
+        // Add glowing top geometry
+        const pylonTopGeometry = new THREE.SphereGeometry(0.8, 8, 8);
+        const pylonTopMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xffff00,
+            transparent: true,
+            opacity: 0.8
+        });
+        
+        for (let i = 0; i < pylonCount; i++) {
+            // Position pylons along both sides of the road near the start
+            const zOffset = -20 + i * pylonSpacing;
+            
+            // Left side pylon
+            const leftPylon = new THREE.Mesh(pylonGeometry, pylonMaterial);
+            leftPylon.position.set(-LANE_WIDTH * 2, pylonHeight / 2, zOffset);
+            startingArea.add(leftPylon);
+            
+            // Left pylon top glow
+            const leftPylonTop = new THREE.Mesh(pylonTopGeometry, pylonTopMaterial);
+            leftPylonTop.position.set(-LANE_WIDTH * 2, pylonHeight, zOffset);
+            startingArea.add(leftPylonTop);
+            
+            // Right side pylon
+            const rightPylon = new THREE.Mesh(pylonGeometry, pylonMaterial);
+            rightPylon.position.set(LANE_WIDTH * 2, pylonHeight / 2, zOffset);
+            startingArea.add(rightPylon);
+            
+            // Right pylon top glow
+            const rightPylonTop = new THREE.Mesh(pylonTopGeometry, pylonTopMaterial);
+            rightPylonTop.position.set(LANE_WIDTH * 2, pylonHeight, zOffset);
+            startingArea.add(rightPylonTop);
+        }
+        
+        // 4. Floating "START" Text
+        const startTextTexture = this.createStartTextTexture();
+        const startTextGeometry = new THREE.PlaneGeometry(20, 5);
+        const startTextMaterial = new THREE.MeshBasicMaterial({
+            map: startTextTexture,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+        
+        const startText = new THREE.Mesh(startTextGeometry, startTextMaterial);
+        startText.position.set(0, 10, -10);
+        startText.rotation.y = Math.PI; // Face the player
+        startingArea.add(startText);
+        
+        // Store reference for animation
+        this.startingArea = startingArea;
+        startingArea.userData = {
+            creationTime: Date.now()
+        };
+        
+        // Add to scene
+        this.scene.add(startingArea);
+    }
+    
+    /**
+     * Create a holographic "START" text texture
+     */
+    createStartTextTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 128;
+        const context = canvas.getContext('2d');
+        
+        // Fill with transparent background
+        context.fillStyle = 'rgba(0,0,0,0)';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Gradient for text
+        const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, '#00ffff');
+        gradient.addColorStop(0.5, '#ffffff');
+        gradient.addColorStop(1, '#ff00ff');
+        
+        // Draw text
+        context.fillStyle = gradient;
+        context.strokeStyle = '#ffffff';
+        context.lineWidth = 2;
+        context.font = 'bold 80px "Courier New", monospace';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText('START', canvas.width/2, canvas.height/2);
+        context.strokeText('START', canvas.width/2, canvas.height/2);
+        
+        // Create texture from canvas
+        const texture = new THREE.CanvasTexture(canvas);
+        return texture;
+    }
+    
+    /**
      * Create road segments and markings
      */
     createRoad() {
-        // Road material with neon lines
+        // Standard road material with neon lines
         const roadMaterial = new THREE.MeshBasicMaterial({
             color: 0x000000,
             transparent: true,
             opacity: 0.8
         });
         
+        // Special starting area grid road material
+        const startGridMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ffff,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.6
+        });
+        
         // Create a reasonable number of initial road segments
         // We need enough for a continuous track but not so many that it causes performance issues
         const initialSegments = ROAD_SEGMENTS * 5; // 1000 segments is plenty
         
-        
         // Create road segments spanning a reasonable distance
         for (let i = 0; i < initialSegments; i++) {
             const segmentGeometry = new THREE.PlaneGeometry(LANE_WIDTH * 3, SEGMENT_LENGTH);
-            const segment = new THREE.Mesh(segmentGeometry, roadMaterial);
+            
+            // Use special grid material for the first 10 segments to create "materializing road" effect
+            const isStartingSegment = i < 10;
+            const material = isStartingSegment ? startGridMaterial.clone() : roadMaterial;
+            
+            // For starting segments, set unique opacity for materializing effect
+            if (isStartingSegment) {
+                const opacity = 0.2 + (i / 10) * 0.6; // Increasing opacity as we move forward
+                material.opacity = opacity;
+                material.color = new THREE.Color(
+                    0.3 + (i / 10) * 0.7, // More blue at first, then cyan
+                    0.8,
+                    1.0
+                );
+            }
+            
+            const segment = new THREE.Mesh(segmentGeometry, material);
             segment.rotation.x = -Math.PI / 2;
             segment.position.z = i * SEGMENT_LENGTH;
             
@@ -141,7 +332,8 @@ class GameWorld {
             segment.userData = {
                 isRoadSegment: true,
                 originalZ: i * SEGMENT_LENGTH,
-                index: i
+                index: i,
+                isStartingSegment: isStartingSegment
             };
             
             // Explicitly set the X position according to track layout
@@ -185,16 +377,56 @@ class GameWorld {
             this.road.add(segment);
             this.roadSegments.push(segment);
             
-            // Add road markings
-            this.addRoadMarkings(segment, i);
-            
-
+            // Add road markings - but only for regular road segments, not the starting grid segments
+            if (!isStartingSegment) {
+                this.addRoadMarkings(segment, i);
+            } else {
+                // For starting segments, add special grid pattern markings
+                this.addStartingGridMarkings(segment, i);
+            }
         }
-        
         
         // Store initial road range
         this.roadZMin = 0;
         this.roadZMax = initialSegments * SEGMENT_LENGTH;
+    }
+    
+    /**
+     * Add special grid markings to the starting road segments
+     */
+    addStartingGridMarkings(segment, index) {
+        // Create a grid overlay instead of lane markings
+        const gridSize = 1;
+        const gridWidth = LANE_WIDTH * 3;
+        const gridDepth = SEGMENT_LENGTH;
+        
+        // Create vertical grid lines
+        for (let x = -gridWidth/2; x <= gridWidth/2; x += gridSize) {
+            const lineGeometry = new THREE.BoxGeometry(0.1, 0.05, gridDepth);
+            const lineMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x00ffff,
+                transparent: true,
+                opacity: 0.3 + (index / 10) * 0.7 // Increasing opacity for segments farther from start
+            });
+            
+            const line = new THREE.Mesh(lineGeometry, lineMaterial);
+            line.position.set(x, 0.05, 0);
+            segment.add(line);
+        }
+        
+        // Create horizontal grid lines
+        for (let z = -gridDepth/2; z <= gridDepth/2; z += gridSize) {
+            const lineGeometry = new THREE.BoxGeometry(gridWidth, 0.05, 0.1);
+            const lineMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x00ffff,
+                transparent: true,
+                opacity: 0.3 + (index / 10) * 0.7
+            });
+            
+            const line = new THREE.Mesh(lineGeometry, lineMaterial);
+            line.position.set(0, 0.05, z);
+            segment.add(line);
+        }
     }
     
     /**
@@ -1198,7 +1430,7 @@ class GameWorld {
     }
     
     /**
-     * Update visual effects (grid color, etc.)
+     * Update visual effects (grid color, starting area, etc.)
      */
     updateVisualEffects(gameTime) {
         // Only update visual effects every few frames for performance
@@ -1212,6 +1444,102 @@ class GameWorld {
                 0.5 + 0.5 * Math.sin(gameTime * 0.7)
             );
             this.gridMaterial.color = gridColor;
+        }
+        
+        // Animate starting area elements
+        if (this.startingArea) {
+            // Find and animate the start line
+            this.startingArea.children.forEach(child => {
+                // Make the starting line pulse
+                if (child.geometry && child.geometry.type === 'PlaneGeometry' && 
+                    child.position.y < 1) { // Low y position identifies the start line
+                    
+                    // Pulse the opacity
+                    if (child.material) {
+                        child.material.opacity = 0.4 + 0.6 * Math.abs(Math.sin(gameTime * 3));
+                        
+                        // Change color over time for a rainbow effect
+                        const hue = (gameTime * 0.1) % 1;
+                        child.material.color.setHSL(hue, 1, 0.5);
+                    }
+                }
+                
+                // Make the "START" text float up and down
+                if (child.geometry && child.geometry.type === 'PlaneGeometry' && 
+                    child.position.y > 5) { // Higher y position identifies the start text
+                    
+                    // Float up and down
+                    child.position.y = 10 + Math.sin(gameTime * 1.5) * 1.5;
+                    
+                    // Slight tilt animation
+                    child.rotation.x = Math.sin(gameTime) * 0.1;
+                }
+                
+                // Make the pylon tops pulse
+                if (child.geometry && child.geometry.type === 'SphereGeometry') {
+                    // Change intensity and color
+                    if (child.material) {
+                        // Each pylon gets a slightly different phase
+                        const uniqueOffset = child.position.z * 0.1;
+                        child.material.opacity = 0.6 + 0.4 * Math.abs(Math.sin(gameTime * 2 + uniqueOffset));
+                        
+                        // Cycle colors
+                        const hue = ((gameTime * 0.2) + uniqueOffset) % 1;
+                        child.material.color.setHSL(hue, 1, 0.5);
+                    }
+                }
+            });
+        }
+        
+        // Animate starting road segments
+        if (this.roadSegments && this.roadSegments.length > 0) {
+            // Only update every few frames to save performance
+            if (this.updateCount % 5 === 0) {
+                // Apply effects only to starting segments (first 10 segments)
+                for (let i = 0; i < Math.min(10, this.roadSegments.length); i++) {
+                    const segment = this.roadSegments[i];
+                    
+                    if (segment && segment.userData && segment.userData.isStartingSegment) {
+                        // Pulse the segment's base material
+                        if (segment.material) {
+                            // Create digital materializing effect - each segment with a different phase
+                            const uniqueOffset = i * 0.1;
+                            
+                            // Grid pattern flickering with more intensity at the start
+                            const intensityFactor = 1.0 - (i / 10) * 0.8; // More intense at index 0
+                            const baseOpacity = 0.2 + (i / 10) * 0.6; // Increasing opacity as we move forward
+                            segment.material.opacity = baseOpacity + 
+                                (0.4 * intensityFactor * Math.sin(gameTime * 3 + uniqueOffset));
+                            
+                            // Change color over time - subtle shift between cyan and blue
+                            const huePulse = Math.sin(gameTime * 2 + uniqueOffset) * 0.05;
+                            segment.material.color.setRGB(
+                                0.3 + (i / 10) * 0.7 + huePulse, // More blue at first, then cyan
+                                0.8 + huePulse,
+                                1.0
+                            );
+                        }
+                        
+                        // Also animate grid lines if they exist
+                        segment.children.forEach(child => {
+                            if (child.material) {
+                                const childPhase = child.position.x + child.position.z;
+                                
+                                // Make grid lines flicker with digital noise effect
+                                const noiseOffset = Math.sin(gameTime * 5 + childPhase * 0.1) * 0.2;
+                                
+                                // Base opacity increases for segments farther from start
+                                const baseOpacity = 0.3 + (i / 10) * 0.7;
+                                child.material.opacity = baseOpacity + noiseOffset;
+                                
+                                // Subtle color pulsing
+                                const colorPulse = 0.1 * Math.sin(gameTime * 3 + childPhase * 0.05);
+                                child.material.color.setRGB(0, 1.0 + colorPulse, 1.0 + colorPulse);
+                            }
+                        });
+                    }
+                }
+            }
         }
     }
     
@@ -1231,13 +1559,33 @@ class GameWorld {
         // Check obstacle collisions
         for (let i = this.obstacles.length - 1; i >= 0; i--) {
             const obstacle = this.obstacles[i];
-            const obstacleBoundingBox = new THREE.Box3().setFromObject(obstacle);
             
-            // Adjust obstacle bounding box to account for road's position
-            obstacleBoundingBox.min.add(roadWorldPosition);
-            obstacleBoundingBox.max.add(roadWorldPosition);
+            // Create a custom collision box that only matches the base obstacle (not the error popup)
+            // The obstacle mesh is 6x4x4 units (from line 514)
+            const obstaclePosition = new THREE.Vector3();
+            obstacle.getWorldPosition(obstaclePosition);
+            obstaclePosition.add(roadWorldPosition); // Add road position
             
-            if (playerBox.intersectsBox(obstacleBoundingBox)) {
+            // Create a box that's 40% smaller than the visual obstacle
+            // This makes the hitbox smaller than the visible obstacle
+            const halfWidth = 1.8; // 60% of 6 units / 2
+            const halfHeight = 1.2; // 60% of 4 units / 2
+            const halfDepth = 1.2; // 60% of 4 units / 2
+            
+            const customBoundingBox = new THREE.Box3(
+                new THREE.Vector3(
+                    obstaclePosition.x - halfWidth,
+                    obstaclePosition.y - halfHeight,
+                    obstaclePosition.z - halfDepth
+                ),
+                new THREE.Vector3(
+                    obstaclePosition.x + halfWidth,
+                    obstaclePosition.y + halfHeight, 
+                    obstaclePosition.z + halfDepth
+                )
+            );
+            
+            if (playerBox.intersectsBox(customBoundingBox)) {
                 collisions.obstacles.push(obstacle);
                 
                 // Remove the obstacle
@@ -1249,13 +1597,32 @@ class GameWorld {
         // Check collectible collisions
         for (let i = this.collectibles.length - 1; i >= 0; i--) {
             const collectible = this.collectibles[i];
-            const collectibleBoundingBox = new THREE.Box3().setFromObject(collectible);
             
-            // Adjust collectible bounding box to account for road's position
-            collectibleBoundingBox.min.add(roadWorldPosition);
-            collectibleBoundingBox.max.add(roadWorldPosition);
+            // Use a custom collision box for collectibles too
+            // Floppy disk is 3x0.5x3 (line 648)
+            const collectiblePosition = new THREE.Vector3();
+            collectible.getWorldPosition(collectiblePosition);
+            collectiblePosition.add(roadWorldPosition); // Add road position
             
-            if (playerBox.intersectsBox(collectibleBoundingBox)) {
+            // We want collectibles to be EASIER to collect, so make the box 25% larger
+            const halfWidth = 1.875; // 125% of 3 units / 2
+            const halfHeight = 1.875; // Use same width for height to make it easier to hit
+            const halfDepth = 1.875; // Use same width for depth to make it easier to hit
+            
+            const customBoundingBox = new THREE.Box3(
+                new THREE.Vector3(
+                    collectiblePosition.x - halfWidth,
+                    collectiblePosition.y - halfHeight,
+                    collectiblePosition.z - halfDepth
+                ),
+                new THREE.Vector3(
+                    collectiblePosition.x + halfWidth,
+                    collectiblePosition.y + halfHeight, 
+                    collectiblePosition.z + halfDepth
+                )
+            );
+            
+            if (playerBox.intersectsBox(customBoundingBox)) {
                 collisions.collectibles.push(collectible);
                 
                 // Remove the collectible
