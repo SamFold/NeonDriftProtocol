@@ -10,7 +10,8 @@
 // Default key bindings
 const KEY_BINDINGS = {
     ACCELERATE: ['ArrowUp', 'w', 'W'],
-    BRAKE: ['ArrowDown', 's', 'S'],
+    BRAKE: [' '], // Spacebar is now the dedicated brake
+    REVERSE: ['ArrowDown', 's', 'S'], // Down arrow now controls reverse
     TURN_LEFT: ['ArrowLeft', 'a', 'A'],
     TURN_RIGHT: ['ArrowRight', 'd', 'D'],
     DEBUG_TOGGLE: ['d', 'D']
@@ -28,6 +29,7 @@ class InputHandler {
         this.inputState = {
             accelerate: false,
             brake: false,
+            reverse: false, // Added reverse state
             turnLeft: false,
             turnRight: false
         };
@@ -91,8 +93,11 @@ class InputHandler {
         // Check acceleration keys
         this.inputState.accelerate = KEY_BINDINGS.ACCELERATE.some(key => this.keysPressed[key]);
         
-        // Check brake keys
+        // Check brake keys (spacebar)
         this.inputState.brake = KEY_BINDINGS.BRAKE.some(key => this.keysPressed[key]);
+        
+        // Check reverse keys (down arrow/S)
+        this.inputState.reverse = KEY_BINDINGS.REVERSE.some(key => this.keysPressed[key]);
         
         // Check turn left keys
         this.inputState.turnLeft = KEY_BINDINGS.TURN_LEFT.some(key => this.keysPressed[key]);

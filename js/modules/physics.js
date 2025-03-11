@@ -11,8 +11,8 @@
 // Physics constants
 const MAX_SPEED = 5000;                   // Maximum speed in units/second (increased by 33%)
 const ACCELERATION = 2000;                // Acceleration rate in units/second² (increased by 30%)
-const DECELERATION = 150;                // Braking rate in units/second² (unchanged) 
-const ENGINE_BRAKING = 0.05;              // Deceleration when not accelerating (reduced further)
+const DECELERATION = 800;                // Braking rate in units/second² (significantly increased)
+const ENGINE_BRAKING = 1.0;              // Deceleration when not accelerating (increased for better natural slowdown)
 const DRAG_COEFFICIENT = 0.00015;         // Air resistance factor (reduced by 50%)
 const OFF_ROAD_FRICTION = 0.03;          // Friction multiplier when off road (reduced further)
 const OFF_ROAD_DAMAGE = 10;              // Instant speed reduction when hitting edge
@@ -46,11 +46,12 @@ class Vehicle {
         this.angularVelocity = 0;                       // Rotation around Y axis
         
         // Physics state
-        this.speed = 0;                  // Current forward speed
+        this.speed = 0;                  // Current forward speed (positive for forward, negative for reverse)
         this.wheelSpeed = 0;             // Wheel rotation speed (for visual effects)
         this.steeringAngle = 0;          // Current steering wheel angle
         this.throttle = 0;               // Current throttle input (0-1)
         this.brake = 0;                  // Current brake input (0-1)
+        this.reverse = 0;                // Current reverse input (0-1)
         this.isGrounded = true;          // Whether the vehicle is on the ground
         this.isOffRoad = false;          // Whether the vehicle is off the road
         this.wasOffRoad = false;         // Whether the vehicle was off road last frame
@@ -161,9 +162,23 @@ class Vehicle {
     updateControls(input, dt) {
         // Debug input
         
-        // Update throttle and brake
-        this.throttle = input.accelerate ? 1.0 : 0.0;
+        // Update throttle, brake and reverse
+        // OPTION A: Brake cancels acceleration - if brake is pressed, throttle is ignored
         this.brake = input.brake ? 1.0 : 0.0;
+        this.reverse = input.reverse ? 1.0 : 0.0;
+        
+        // Only allow throttle if brake is not being applied
+        this.throttle = (input.accelerate && !input.brake) ? 1.0 : 0.0;
+        
+        // Future enhancement: Here we could detect brake+accelerate+turn for drift mechanics
+        // Example drift detection (commented out for future implementation):
+        /*
+        this.isDrifting = false; // Default state
+        if (input.brake && input.accelerate && (input.turnLeft || input.turnRight)) {
+            // Drift conditions met - would set drift state and apply specialized physics
+            this.isDrifting = true;
+        }
+        */
         
         // Debug throttle/brake
         if (this.throttle > 0 || this.brake > 0) {
@@ -272,15 +287,35 @@ class Vehicle {
         let tractiveForce = 0;
         
         if (this.isGrounded) {
-            if (this.throttle > 0) {
-                // Forward acceleration (throttle)
-                tractiveForce = ACCELERATION * this.throttle;
+            if (this.throttle > 0 && this.speed >= -1) {  // Only allow acceleration if not moving fast in reverse
+                // Mario Kart-style acceleration curve: stronger at low speeds, tapering as speed increases
+                const speedRatio = Math.max(0, Math.min(1, this.speed / MAX_SPEED));
+                
+                // This curve provides:
+                // - At 0% speed: 2x acceleration (strong launch)
+                // - At 50% speed: ~1.26x acceleration (good mid-range)
+                // - At 100% speed: 0.2x acceleration (still some push at top end)
+                const accelerationMultiplier = 1.8 * Math.pow(1 - speedRatio, 1.5) + 0.2;
+                
+                // Apply the acceleration with the dynamic multiplier
+                tractiveForce = ACCELERATION * accelerationMultiplier * this.throttle;
                 
             } else if (this.brake > 0) {
-                // Braking force
-                tractiveForce = -Math.sign(this.speed) * DECELERATION * this.brake;
+                // Dedicated emergency braking with spacebar (dramatically powerful arcade-style brake)
+                tractiveForce = -Math.sign(this.speed) * DECELERATION * 6.0 * this.brake;  // 6x stronger braking (arcade-style emergency stop)
+            } else if (this.reverse > 0) {
+                if (this.speed > 5) {
+                    // If moving forward fast, first act as a brake
+                    tractiveForce = -DECELERATION * 2.0 * this.reverse;  // 2x stronger than regular braking
+                } else if (this.speed > 0) {
+                    // If moving forward slowly, stronger braking to stop quickly
+                    tractiveForce = -DECELERATION * 2.5 * this.reverse;
+                } else {
+                    // If stopped or moving backward, accelerate in reverse (at 40% of forward acceleration)
+                    tractiveForce = -ACCELERATION * 0.4 * this.reverse;
+                }
             } else {
-                // Engine braking when no throttle or brake applied
+                // Engine braking when no throttle, brake or reverse applied
                 tractiveForce = -Math.sign(this.speed) * ENGINE_BRAKING;
             }
         }
@@ -317,18 +352,26 @@ class Vehicle {
             
             // Adjust angular acceleration based on speed
             // At higher speeds, the steering becomes more gradually responsive
-            const speedFactor = Math.max(0.2, Math.min(1.0, this.speed / 30.0));
-            totalAngularAcceleration = steeringFactor * this.speed * speedFactor;
+            const speedFactor = Math.max(0.2, Math.min(1.0, Math.abs(this.speed) / 30.0));
+            
+            // Reverse steering when in reverse (multiply by -1)
+            const directionFactor = this.speed < 0 ? -1 : 1;
+            
+            totalAngularAcceleration = directionFactor * steeringFactor * Math.abs(this.speed) * speedFactor;
             
             // Apply lateral forces (for drifting at high speeds and steering angles)
-            if (Math.abs(this.steeringAngle) > 0.2 && this.speed > MAX_SPEED * 0.5) {
+            if (Math.abs(this.steeringAngle) > 0.2 && Math.abs(this.speed) > MAX_SPEED * 0.4) {
                 // Calculate lateral traction loss during hard cornering
-                const tractionLoss = Math.min(0.8, (Math.abs(this.steeringAngle) * this.speed) / (MAX_STEERING_ANGLE * MAX_SPEED));
+                const tractionLoss = Math.min(0.8, (Math.abs(this.steeringAngle) * Math.abs(this.speed)) / (MAX_STEERING_ANGLE * MAX_SPEED));
                 
                 // Calculate drift force perpendicular to vehicle direction
-                const driftAcceleration = this.speed * tractionLoss * 0.5;
+                // Account for direction (reverse vs forward) in drift calculation
+                const driftAcceleration = Math.abs(this.speed) * tractionLoss * 0.5;
+                const steeringSign = Math.sign(this.steeringAngle);
+                const directionMultiplier = this.speed < 0 ? -1 : 1;
+                
                 const lateralAccelerationVector = this.right.clone().multiplyScalar(
-                    Math.sign(this.steeringAngle) * driftAcceleration
+                    steeringSign * directionMultiplier * driftAcceleration
                 );
                 
                 // Add lateral acceleration
@@ -512,6 +555,7 @@ class Vehicle {
         this.wheelSpeed = this.speed / WHEEL_RADIUS;
         
         // Rotate all wheels for visual effect (each wheel rotates around its local X axis)
+        // Note: Sign is important for correct rotation direction in forward vs reverse
         const rotationAmount = this.wheelSpeed * dt;
         
         if (this.frontWheels.length > 0) {

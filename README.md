@@ -77,9 +77,10 @@ You can use applications like XAMPP, WAMP, or MAMP to serve the files locally.
 ## Controls
 
 - **Up Arrow / W**: Accelerate
-- **Down Arrow / S**: Brake (doesnt work right now...)
+- **Down Arrow / S**: Brake/Reverse (hold to brake, continue holding to reverse)
 - **Left Arrow / A**: Turn left
 - **Right Arrow / D**: Turn right
+- **Spacebar**: Emergency Brake (dramatically fast stopping)
 - **Space**: Start game (on title screen)
 
 ## Features
