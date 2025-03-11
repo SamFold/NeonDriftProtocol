@@ -1,0 +1,14 @@
+{
+  "name": "neon-drift-protocol",
+  "version": "1.0.0",
+  "description": "A vaporwave racing game with retro aesthetics",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "Sam Fold",
+  "license": "MIT",
+  "engines": {
+    "node": ">=12.0.0"
+  }
+}

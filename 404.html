@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - DATA CORRUPTION</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(45deg, #ff00aa, #00aaff);
+            font-family: 'Courier New', monospace;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .error-container {
+            width: 80%;
+            max-width: 600px;
+            text-align: center;
+            animation: glitch 2s infinite;
+        }
+        
+        h1 {
+            font-size: 4em;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #f0f, 0 0 20px #00f;
+        }
+        
+        .error-dialog {
+            background-color: #c0c0c0;
+            border: 2px solid #000080;
+            border-radius: 0;
+            box-shadow: 5px 5px 0 rgba(0,0,0,0.5);
+            color: black;
+            padding: 20px;
+            margin-top: 20px;
+            position: relative;
+        }
+        
+        .title-bar {
+            background-color: #000080;
+            color: white;
+            padding: 5px 10px;
+            margin: -20px -20px 20px -20px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .error-icon {
+            width: 50px;
+            height: 50px;
+            margin-right: 20px;
+            background: red;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 2em;
+            border-radius: 50%;
+        }
+        
+        .error-content {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .error-text {
+            flex: 1;
+            text-align: left;
+        }
+        
+        .error-buttons {
+            display: flex;
+            justify-content: center;
+        }
+        
+        .btn {
+            background-color: #c0c0c0;
+            border: 2px outset #ddd;
+            padding: 5px 20px;
+            cursor: pointer;
+            text-decoration: none;
+            color: black;
+        }
+        
+        .btn:hover {
+            background-color: #ddd;
+        }
+        
+        @keyframes glitch {
+            0% {
+                transform: translate(0);
+            }
+            20% {
+                transform: translate(-5px, 5px);
+            }
+            40% {
+                transform: translate(5px, -5px);
+            }
+            60% {
+                transform: translate(-5px, -5px);
+            }
+            80% {
+                transform: translate(5px, 5px);
+            }
+            100% {
+                transform: translate(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <h1>404</h1>
+        <div class="error-dialog">
+            <div class="title-bar">
+                <span>System Error</span>
+                <span>X</span>
+            </div>
+            <div class="error-content">
+                <div class="error-icon">X</div>
+                <div class="error-text">
+                    <p>DATA CORRUPTION DETECTED</p>
+                    <p>The digital highway segment you requested cannot be found.</p>
+                </div>
+            </div>
+            <div class="error-buttons">
+                <a href="/" class="btn">RETURN TO MAINFRAME</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
