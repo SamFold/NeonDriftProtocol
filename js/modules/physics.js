@@ -204,8 +204,9 @@ class Vehicle {
             }
         }
         
-        // Steering becomes less effective at high speeds
-        const speedFactor = Math.max(0.3, 1.0 - this.speed / MAX_SPEED * 0.6);
+        // Steering becomes significantly less effective at high speeds (arcade handling model)
+        // More aggressive reduction - at max speed, steering is only 15% effective
+        const speedFactor = Math.max(0.15, 1.0 - Math.pow(this.speed / MAX_SPEED, 0.7) * 0.85);
         const effectiveSteeringAngle = this.steeringAngle * speedFactor;
         
         // Apply steering angle to front wheels for visual effect
@@ -357,16 +358,22 @@ class Vehicle {
             // Reverse steering when in reverse (multiply by -1)
             const directionFactor = this.speed < 0 ? -1 : 1;
             
-            totalAngularAcceleration = directionFactor * steeringFactor * Math.abs(this.speed) * speedFactor;
+            // Use square root of speed to reduce extreme turning at high speeds
+            // This creates a more arcade-like feel with better stability
+            totalAngularAcceleration = directionFactor * steeringFactor * Math.sqrt(Math.abs(this.speed) * 20) * speedFactor;
             
             // Apply lateral forces (for drifting at high speeds and steering angles)
-            if (Math.abs(this.steeringAngle) > 0.2 && Math.abs(this.speed) > MAX_SPEED * 0.4) {
-                // Calculate lateral traction loss during hard cornering
-                const tractionLoss = Math.min(0.8, (Math.abs(this.steeringAngle) * Math.abs(this.speed)) / (MAX_STEERING_ANGLE * MAX_SPEED));
+            // Raised threshold for drift onset to 60% of max speed and requires more steering
+            if (Math.abs(this.steeringAngle) > 0.25 && Math.abs(this.speed) > MAX_SPEED * 0.6) {
+                // Calculate lateral traction loss with more gradual onset
+                // The 1.5 divisor makes traction loss more manageable at high speeds
+                const tractionLoss = Math.min(0.7, (Math.abs(this.steeringAngle) * Math.abs(this.speed)) / 
+                                        (MAX_STEERING_ANGLE * MAX_SPEED * 1.5));
                 
-                // Calculate drift force perpendicular to vehicle direction
-                // Account for direction (reverse vs forward) in drift calculation
-                const driftAcceleration = Math.abs(this.speed) * tractionLoss * 0.5;
+                // Calculate drift force with speed-based dampening (prevents excessive spin-outs)
+                // The higher the speed, the more we dampen lateral forces
+                const speedDampening = 1.0 / (1.0 + Math.abs(this.speed) / 2000);
+                const driftAcceleration = Math.abs(this.speed) * tractionLoss * 0.4 * speedDampening;
                 const steeringSign = Math.sign(this.steeringAngle);
                 const directionMultiplier = this.speed < 0 ? -1 : 1;
                 
